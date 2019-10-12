@@ -10,6 +10,8 @@
 #define O_RDONLY         00
 #define O_WRONLY         01
 #define O_RDWR           02
+#define filename "queue.c"
+
 int main()
 {
 	int pfds2[2];
@@ -48,7 +50,7 @@ int main()
 
 			//char* input_str = "How are you?";
 			//write(pfds2[1], input_str, strlen(input_str));
-			execlp("/bin/grep", "grep", "-v", "/", 0);
+			execlp("/bin/grep", "grep", "-w", filename, 0);
 		}
 	}
 	else 
@@ -59,11 +61,46 @@ int main()
 		//and we will search for required file and recurse through directories
 		printf("Hello, I am Grand Parent\n");
 		while(wait(NULL) != -1);
-		char buffer[200];	
+		char buffer[100];	
+		buffer[0] = '\0';
 		wait(NULL);
-		read(pfds2[0], buffer, 200); 
+		
+		char file_temp[] = "";
+		read(pfds2[0], buffer, sizeof(buffer));
+		if(buffer[0] != '\0')
+		{
+			printf("File found! Hurray!\n");
+			//File found and set flag, path in shared memory
+
+		}
+		else
+		{
+			printf("File not found! :(");
+			//File not found
+		}
+/*		while(read(pfds2[0], buffer, 1) > 0) 
+ 
+		{
+			if(buffer[0] == '\n' )
+			{
+//				file_temp[0] = '\0';
+			}
+			else
+			{
+				//char temp_buffer[2];
+				//temp_buffer[0] = buffer[0];
+				//temp_buffer[1] = '\0';
+				//strcat(file_temp, temp_buffer);
+				if(strcmp(file_temp, "shm_count.txt") == 0)
+				{
+					printf("Found file! %s", file_temp);
+					//Set the flag
+
+					break;
+				}
+			}
+		}*/
 		close(pfds2[0]);
-		printf("Buffer: %s", buffer);
 		printf("Hello, I am 1\n");
 
 		int pfds3[2];
@@ -111,9 +148,9 @@ int main()
 			//and we will search for required file and recurse through directories
 			printf("Hello, I am Grand Parent\n");
 			while(wait(NULL) != -1);
-			char buffer[200];	
+			char buffer[300];	
 			wait(NULL);
-			read(pfds3[0], buffer, 200); 
+			read(pfds3[0], buffer, 300); 
 			close(pfds3[0]);
 			printf("Buffer: %s", buffer);
 			printf("Hello, I am 1\n");

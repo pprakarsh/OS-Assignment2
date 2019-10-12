@@ -8,9 +8,6 @@
 
 int main()
 {
-	int pfd[2];
-	pipe(pfd);
-	if(fork())
-	{
-	}
+	char s[] = "hello";
+	printf("%d ", strcmp(s, "hello"));
 }
