@@ -6,8 +6,8 @@
 int main()
 {
 
-	char* str_cwd;
-	getcwd(str_cwd, 100);
+	char str_cwd[200];
+	getcwd(str_cwd, 200);
 	strcat(str_cwd, "/Hello");
 	printf("%s", str_cwd);
 }
