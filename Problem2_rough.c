@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include<fcntl.h>
 #include<stdio.h>
 #include<sys/wait.h>
@@ -6,14 +7,27 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include<string.h>
+#include<sys/ipc.h>
+#include<sys/shm.h>
 
 #define O_RDONLY         00
 #define O_WRONLY         01
 #define O_RDWR           02
-#define filename "queue.c"
+#define filename "queue1.c"
 
+struct shm_foundInfo
+{
+	char flag;
+	char* path;
+};
 int main()
 {
+	key_t key = ftok("~/OS_Assignment2/shm_foundInfo.txt", 's');                                                                                 
+	int shm_id = shmget(key, sizeof(struct shm_foundInfo), 0666|IPC_CREAT);                                                                          
+	struct shm_foundInfo* ptr_shm= shmat(shm_id, NULL, 0);
+	
+	ptr_shm->flag = 'r';
+
 	int pfds2[2];
 
 	pipe(pfds2);
@@ -69,9 +83,16 @@ int main()
 		read(pfds2[0], buffer, sizeof(buffer));
 		if(buffer[0] != '\0')
 		{
-			printf("File found! Hurray!\n");
 			//File found and set flag, path in shared memory
-
+			ptr_shm->flag = 'g';
+			char* str;
+			ptr_shm->path = getcwd(str, 200); 
+			
+			char* str_slash = "/"; 
+			strcat(ptr_shm->path, str_slash); 
+			strcat(ptr_shm->path, filename);
+			printf("File found! Hurray!\n %s", ptr_shm->path);
+			exit(0);
 		}
 		else
 		{
@@ -152,7 +173,18 @@ int main()
 			wait(NULL);
 			read(pfds3[0], buffer, 300); 
 			close(pfds3[0]);
-			printf("Buffer: %s", buffer);
+			
+			int init_size = strlen(buffer);
+			char delim[] = "\n";
+
+			char *ptr = strtok(buffer, delim);
+
+			while(ptr != NULL)
+			{
+				ptr = strtok(NULL, delim);
+			}
+
+
 			printf("Hello, I am 1\n");
 		}
 	}
