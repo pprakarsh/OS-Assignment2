@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
 				ptr_node->arr[r][c] = getpid();
 				kill(getpid(), SIGSTOP);
 				printf("Hello I am child! row-%d :)%d\n", r, getpid());
-				sleep(5);
+				sleep(2);
 				if(r == v2)
 				{
 					if(!isEmpty(ptr_node))
@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
 					{
 						printf("\nError! Queue is empty");
 					}
-					sleep(45);
+					sleep(33);
 					exit(0);
 				}
 				break;
