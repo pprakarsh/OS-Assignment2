@@ -20,6 +20,60 @@ struct shm_foundInfo
 	char flag;
 	char path[200];
 };
+
+void changeMarks(char* name, char* marks, struct shm_foundInfo* ptr_shm)
+{
+	printf("\nChanging Marks....\n");
+	//change marks
+	FILE* fp = fopen(ptr_shm->path, "r+");
+	if(fp == NULL)
+	{
+		printf("Error, opening file\n");
+	}
+	char str_t[40];
+	fscanf(fp, "%s", &str_t);
+	while(strcmp(str_t, name) != 0)
+	{
+		fscanf(fp, "%s", &str_t);	
+	}
+	char ch;
+	fscanf(fp, "%c", &ch);
+	fprintf(fp, marks);
+	fclose(fp);
+
+}
+
+char recurseDir(char buffer[])
+{
+	char flag = 'n';
+	char delim[] = "\n";
+	char *ptr = strtok(buffer, delim);
+	char str2[100];
+	//printf("\ncwd: %s\n", getcwd(str2, 100));
+	while(ptr != NULL)
+	{
+		if(fork())
+		{
+			//Flag set
+			flag = 'p';
+			ptr = strtok(NULL, delim);
+		}
+		else
+		{
+			flag = 'c';
+			//printf("\n%s!DEBUG, cwd: %s\n", ptr, str2);
+			char str_cwd[200];
+			getcwd(str_cwd, 200);
+			strcat(str_cwd, "/");
+			strcat(str_cwd, ptr);
+			chdir(str_cwd);
+			chmod(str_cwd, S_IRUSR | S_IWUSR | S_IXUSR | S_IXUSR | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
+			break;
+		}
+	}
+	return flag;
+}
+
 int main()
 {
 	pid_t pid_main = getpid();
@@ -36,10 +90,9 @@ int main()
 	printf("Top working directory: %s\n", getcwd(str, 100));
 	while(1)
 	{
-		char flag = 'n';	
 		int pfds2[2];
-
 		pipe(pfds2);
+		char flag = 'n';
 
 		if(fork() == 0)
 		{
@@ -78,31 +131,28 @@ int main()
 		{
 			close(pfds2[1]);
 			while(wait(NULL) != -1);
-			//We will read from output of (ls -p | grep -v "/") and (ls -p | grep "/")
+			//We will read from output of (ls -p | grep filename)
 			//and we will search for required file and recurse through directories
-			while(wait(NULL) != -1);
 			char buffer[100];	
 			buffer[0] = '\0';
-			wait(NULL);
 			
 			char file_temp[] = "";
 			read(pfds2[0], buffer, sizeof(buffer));
 			if(buffer[0] != '\0')
 			{
 				//File found and set flag, path in shared memory
-				ptr_shm->flag = 'g';
-				char* str;
-				strcpy(ptr_shm->path, getcwd(str, 200)); 
+				char str[200];
+				getcwd(str, 200);
+				strcpy(ptr_shm->path, str); 
 				
 				char* str_slash = "/"; 
 				strcat(ptr_shm->path, str_slash); 
 				strcat(ptr_shm->path, filename);
-				printf("\n%d File found! Hurray! count: %d, Path: %s\n", getpid(), count, ptr_shm->path);
+				ptr_shm->flag = 'g';
 				exit(0);
 			}
 			else
 			{
-				//printf("File not found! :(");
 				//File not found
 				if(ptr_shm->flag == 'g')
 				{
@@ -135,6 +185,7 @@ int main()
 						printf("grep input redirect error!\n");
 					}
 					close(pfds1[0]);
+
 					int st;
 					if(st = dup2(pfds3[1], 1) == -1)
 					{
@@ -142,8 +193,6 @@ int main()
 					}
 					close(pfds3[0]);
 
-					//char* input_str = "How are you?";
-					//write(pfds2[1], input_str, strlen(input_str));
 					execlp("/bin/grep", "grep", "/", 0);
 				}
 			}
@@ -151,9 +200,8 @@ int main()
 			{
 				close(pfds3[1]);
 				while(wait(NULL) != -1);
-				//We will read from output of (ls -p | grep -v "/") and (ls -p | grep "/")
+				//We will read from output of (ls -p | grep "/")
 				//and we will search for required file and recurse through directories
-				while(wait(NULL) != -1);
 				char buffer[300];
 			      	for(int i = 0; i < 300; i++)
 					buffer[i] = '\0';	
@@ -161,71 +209,23 @@ int main()
 				wait(NULL);
 				read(pfds3[0], buffer, 300); 
 				close(pfds3[0]);
-				//printf("\nBuffer output:\n%s\nBuffer ouput close\n", buffer);
 				
-				int init_size = strlen(buffer);
-				char delim[] = "\n";
 
-				char *ptr = strtok(buffer, delim);
+				//For rercursing through Directories in currend working directory
+				flag = recurseDir(buffer);
 
-				char str2[100];
-				//printf("\ncwd: %s\n", getcwd(str2, 100));
-
-				while(ptr != NULL)
-				{
-					if(fork())
-					{
-						//Flag set
-						flag = 'p';
-						ptr = strtok(NULL, delim);
-					}
-					else
-					{
-						flag = 'c';
-						//printf("\n%s!DEBUG, cwd: %s\n", ptr, str2);
-						char str_cwd[200];
-						getcwd(str_cwd, 200);
-						strcat(str_cwd, "/");
-						strcat(str_cwd, ptr);
-						chdir(str_cwd);
-						chmod(str_cwd, S_IRUSR | S_IWUSR | S_IXUSR | S_IXUSR | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
-						break;
-					}
-				}
 			}
 		}
 		if(flag == 'n')
 		{
 			exit(0);
 		}
-		if(count == 0 && flag == 'p')
+		if(count == 0 && flag == 'p') //count == 0 with flag == 'p' denotes the topmost directory (Evaluator)
 		{
 			while(wait(NULL) != -1);				
 			if(ptr_shm->flag == 'g')
 			{
-				if(getpid() == pid_main)
-				{
-					printf("Path: %s", ptr_shm->path);
-				}
-				printf("\nChanging Marks....\n");
-				//change marks
-				printf("%d Path: %s", getpid(), ptr_shm->path);
-				FILE* fp = fopen(ptr_shm->path, "r+");
-				printf("Hello, bhai!, \n");
-				if(fp == NULL)
-				{
-					printf("Error, opening file\n");
-				}
-				char str[40];
-				fscanf(fp, "%s", &str);
-				while(strcmp(str, "Prakarsh") != 0)
-				{
-					fscanf(fp, "%s", &str);	
-				}
-				char ch;
-				fscanf(fp, "%c", &ch);
-				fprintf(fp, "19");
-				fclose(fp);
+				changeMarks("Prakarsh", "14", ptr_shm);
 			}
 			else
 			{
