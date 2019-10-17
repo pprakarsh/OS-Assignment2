@@ -5,8 +5,10 @@
 
 int main()
 {
-
-	char* str_cwd;
+	printf("Hello");
+	chdir("./Testing1");
+	printf("Hello");
+	char str_cwd[100];
 	getcwd(str_cwd, 100);
 	strcat(str_cwd, "/Hello");
 	printf("%s", str_cwd);

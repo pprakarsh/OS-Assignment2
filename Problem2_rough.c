@@ -13,12 +13,13 @@
 #define O_RDONLY         00
 #define O_WRONLY         01
 #define O_RDWR           02
-#define filename "marks1.txt"
 
 struct shm_foundInfo
 {
 	char flag;
 	char path[200];
+	char topdir[200];
+	char file[100];
 };
 
 void changeMarks(char* name, char* marks, struct shm_foundInfo* ptr_shm)
@@ -49,7 +50,6 @@ char recurseDir(char buffer[], struct shm_foundInfor* ptr_shm)
 	char delim[] = "\n";
 	char *ptr = strtok(buffer, delim);
 	char str2[100];
-	//printf("\ncwd: %s\n", getcwd(str2, 100));
 	while(ptr != NULL)
 	{
 		if(fork())
@@ -65,7 +65,6 @@ char recurseDir(char buffer[], struct shm_foundInfor* ptr_shm)
 			getcwd(str_cwd, 200);
 			strcat(str_cwd, "/");
 			strcat(str_cwd, ptr);
-			//printf("\n%s!DEBUG, cwd: %s\n", ptr, str_cwd);
 			chmod(str_cwd, S_IRUSR | S_IWUSR | S_IXUSR | S_IXUSR | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
 			SearchFile(str_cwd, ptr_shm);
 			break;
@@ -103,15 +102,14 @@ void SearchFile(char* path, struct shm_foundInfo* ptr_shm)
 			}
 			close(pfds1[0]);
 			int st;
+			close(pfds2[0]);
 			if(st = dup2(pfds2[1], 1) == -1)
 			{
 				printf("grep ouput redirect error!\n");
 			}
-			close(pfds2[0]);
+			close(pfds2[1]);
 
-			//char* input_str = "How are you?";
-			//write(pfds2[1], input_str, strlen(input_str));
-			execlp("/bin/grep", "grep", "-w", filename, 0);
+			execlp("/bin/grep", "grep", "-w", ptr_shm->file, 0);
 		}
 	}
 	else 
@@ -134,7 +132,7 @@ void SearchFile(char* path, struct shm_foundInfo* ptr_shm)
 			
 			char* str_slash = "/"; 
 			strcat(ptr_shm->path, str_slash); 
-			strcat(ptr_shm->path, filename);
+			strcat(ptr_shm->path, ptr_shm->file);
 			ptr_shm->flag = 'g';
 			exit(0);
 		}
@@ -203,33 +201,24 @@ void SearchFile(char* path, struct shm_foundInfo* ptr_shm)
 		}
 		if(flag == 'n')
 		{
-			//printf("Base case\n");
 			//Base case, no further directories present
 			exit(0);
 		}
 		else if(flag == 'c')
 		{
-			printf("Should not enter here\n");
 			//Program should never enter this state
+			printf("Should not enter here\n");
 			exit(0);
 		}
 		if(flag == 'p')
 		{
 			while(wait(NULL) != -1);
-			char str_path[200];
-			if(strcmp("/home/prakarsh/Evaluator", getcwd(str_path, 200)) == 0)
-			{
-				//Topmost process, handled in main function
-				return;	
-			}
-
-			//Normal Process (not topmost)
 			exit(0);
 		}	
 	}
 }
 
-int main()
+int main(int argc, char* argv[])
 {
 	pid_t pid_main = getpid();
 	key_t key = ftok("/home/prakarsh/OS_Assignment2/shm_foundInfo.txt", 's');                                                                                 
@@ -238,21 +227,32 @@ int main()
 	
 	ptr_shm->flag = 'r';
 	
+	char filename[100];
+	strcpy(filename, argv[1]);	
+	strcpy(ptr_shm->file, filename);
+	
 	int count = 0;
 
 	char str[100];
 	printf("Top working directory: %s\n", getcwd(str, 100));
 
-	SearchFile("/home/prakarsh/Evaluator", ptr_shm);
+	strcpy(ptr_shm->topdir, str);
+
+	if(! fork())
+	{
+		SearchFile(str, ptr_shm);
+	}
+
+	while(wait(NULL) != -1);
 
 	if(ptr_shm->flag == 'g')
 	{
-		changeMarks("Prakarsh", "24", ptr_shm);
+		//changeMarks("Prakarsh", "24", ptr_shm);
+		printf("File found, Your file is in the directory: %s\n", ptr_shm->path);
 	}
 	else
 	{
-		char str1[100];
-		printf("\nNo file found! Algorithm Incorrect. cwd: %s\n", getcwd(str1, 100));
+		printf("No such file found\n");
 	}
 	exit(0);
 }
